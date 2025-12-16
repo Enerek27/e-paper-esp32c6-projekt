@@ -8,6 +8,15 @@
 
 #include "DEV_Config.h"
 #include "EPD_2in66.h" // skopíruj z waveshare repo do components/epd2in66/
+#include "GUI_Paint.h"      /* alebo Paint.h / GUI.h */
+#include "fonts.h" 
+
+
+//TODO dorobit importy fontov a nastavenie vypisu
+
+
+
+
 
 void app_main(void)
 {
@@ -22,40 +31,39 @@ void app_main(void)
     printf("Clear screen...\n");
     EPD_2IN66_Clear();
 
-    // Vytvorenie jednoduchého obrázku: tu plný biely/čierny buffer
-    // Rozmery: 152 x 296, bytes per line = (152 + 7) / 8 = 19
-    const int width = EPD_2IN66_WIDTH;
-    const int height = EPD_2IN66_HEIGHT;
-    const int bytes_per_line = (width + 7) / 8;
-    const int buf_size = bytes_per_line * height;
+    
 
-    uint8_t *buf = malloc(buf_size);
-    if (!buf) {
-        printf("No memory\n");
+    UBYTE *image_buffer = (UBYTE *)malloc(EPD_2IN66_WIDTH * EPD_2IN66_HEIGHT / 8);
+    if (image_buffer == NULL) {
+        printf("Buffer allocation failed\n");
         EPD_2IN66_Sleep();
         DEV_Module_Exit();
         return;
     }
+    Paint_NewImage(image_buffer, EPD_2IN66_WIDTH, EPD_2IN66_HEIGHT, 0, WHITE);
+    Paint_SelectImage(image_buffer);
+    Paint_SetRotate(ROTATE_90);
+    Paint_Clear(WHITE);
 
-    // vykreslíme len testovací vzor: preblikneme bielu -> čiernu -> biela
-    // white = 0xFF (v mnohých drivers biela), black = 0x00
-    memset(buf, 0xFF, buf_size);
-    EPD_2IN66_Display(buf);
-    vTaskDelay(pdMS_TO_TICKS(3000));
+     const char *line1 = "Najlepsi doktorand: ";
+     const char *line2 = "Ing. Michal Kubaščík";
 
-    memset(buf, 0x00, buf_size);
-    EPD_2IN66_Display(buf);
-    vTaskDelay(pdMS_TO_TICKS(3000));
+      Paint_DrawString_EN(10, 10, (char *)line1, &Font12, BLACK, WHITE);
+      Paint_DrawString_EN(10, 40, (char *)line2, &Font12, BLACK, WHITE);
 
-    // späť na bielu
-    memset(buf, 0xFF, buf_size);
-    EPD_2IN66_Display(buf);
-    vTaskDelay(pdMS_TO_TICKS(2000));
+      /* 5) Poslať buffer na displej */
+    EPD_2IN66_Display(image_buffer);
+    /* Počkajte chvíľu aby bol text čitateľný */
+    DEV_Delay_ms(2000);
 
-    free(buf);
-
-    printf("Sleep...\n");
+    /* 6) (Voliteľné) reset/uloženie energie - uspanie displeja */
     EPD_2IN66_Sleep();
+
+    /* uvoľnenie bufferu a ukončenie modulu */
+    free(image_buffer);
     DEV_Module_Exit();
+
     printf("Done\n");
+    return;
+
 }
