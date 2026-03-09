@@ -845,3 +845,60 @@ void Paint_DrawBitMap(const unsigned char* image_buffer)
         }
     }
 }
+
+void Paint_DrawBitmap_universal(const unsigned char* image, UBYTE background, UWORD rotation)
+{
+    UWORD img_width  = image[2] | (image[3] << 8);
+    UWORD img_height = image[4] | (image[5] << 8);
+
+    const unsigned char* img = image + 6;
+
+    UWORD bytes_per_row = (img_width + 7) / 8;
+
+    Paint_Clear(background);
+
+    UWORD draw_width  = (rotation == ROTATE_90 || rotation == ROTATE_270) ? img_height : img_width;
+    UWORD draw_height = (rotation == ROTATE_90 || rotation == ROTATE_270) ? img_width  : img_height;
+
+    int x_offset = (Paint.Width  - draw_width)  / 2;
+    int y_offset = (Paint.Height - draw_height) / 2;
+
+    for (UWORD y = 0; y < img_height; y++) {
+        for (UWORD x = 0; x < img_width; x++) {
+
+            UWORD byte_index = (x / 8) + y * bytes_per_row;
+            UBYTE bit = 0x80 >> (x % 8);
+
+            UBYTE color = (img[byte_index] & bit) ? BLACK : WHITE;
+
+            int xr = x;
+            int yr = y;
+
+            switch(rotation)
+            {
+                case ROTATE_90:
+                    xr = img_height - 1 - y;
+                    yr = x;
+                    break;
+
+                case ROTATE_180:
+                    xr = img_width - 1 - x;
+                    yr = img_height - 1 - y;
+                    break;
+
+                case ROTATE_270:
+                    xr = y;
+                    yr = img_width - 1 - x;
+                    break;
+
+                default:
+                    break;
+            }
+
+            Paint_SetPixel(xr + x_offset, yr + y_offset, color);
+        }
+    }
+}
+
+
+

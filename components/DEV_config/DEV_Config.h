@@ -18,7 +18,7 @@
 #define EPD_DC_PIN     14
 #endif
 #ifndef EPD_RST_PIN
-#define EPD_RST_PIN    15
+#define EPD_RST_PIN    20
 #endif
 #ifndef EPD_BUSY_PIN
 #define EPD_BUSY_PIN   2
