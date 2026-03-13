@@ -1,0 +1,37 @@
+
+
+#include "spiff_my.h"
+#include "esp_log.h"
+
+void init_spiffs()
+{
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/spiffs",
+        .partition_label = NULL,
+        .max_files = 5,
+        .format_if_mount_failed = true
+    };
+    
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE("SPIFFS", "Mount failed: %s", esp_err_to_name(ret));
+        return;
+    }
+    
+    // Skontroluj dostupné miesto
+    size_t total = 0, used = 0;
+    esp_spiffs_info(NULL, &total, &used);
+    ESP_LOGI("SPIFFS", "Mounted OK. Total: %d, Used: %d", total, used);
+    
+    // Test zápisu
+    FILE *f = fopen("/spiffs/test.txt", "w");
+    if (!f)
+        ESP_LOGE("SPIFFS", "Test write FAILED!");
+    else
+    {
+        fprintf(f, "test");
+        fclose(f);
+        ESP_LOGI("SPIFFS", "Test write OK");
+    }
+}
