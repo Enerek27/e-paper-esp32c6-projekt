@@ -2,16 +2,160 @@
 #include "server.h"
 
 
+static esp_err_t captive_redirect_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+
+
+
+esp_err_t draw_shape_handler(httpd_req_t *req)
+{
+    int total_len = req->content_len;
+    char *buf = malloc(total_len + 1);
+    if (!buf) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OOM");
+        return ESP_FAIL;
+    }
+
+    int received = httpd_req_recv(req, buf, total_len);
+    if (received <= 0) {
+        free(buf);
+        return ESP_FAIL;
+    }
+    buf[received] = '\0';
+
+    char type[32] = {0};
+    char text[64] = {0};
+    int x1 = 0;
+    int y1 = 0;
+    int x2 = 0;
+    int y2 = 0;
+    int radius = 0;
+    int color = 0;
+    int width = 1;
+    int style = 0;
+    int filled = 0;
+    int font_size = 16;
+    int number = 0;
+    int digit = 0;
+
+    char *p;
+
+    p = strstr(buf, "type=");
+    if (p) {
+        p += 5;
+        char *e = strchr(p, '&');
+        int l = e ? (e - p) : strlen(p);
+        if (l > 31) l = 31;
+        strncpy(type, p, l);
+    }
+
+    p = strstr(buf, "text=");
+    if (p) {
+        p += 5;
+        char *e = strchr(p, '&');
+        int l = e ? (e - p) : strlen(p);
+        if (l > 63) l = 63;
+        strncpy(text, p, l);
+    }
+    for (int i = 0; text[i]; i++) {
+        if (text[i] == '+') text[i] = ' ';
+    }
+
+    p = strstr(buf, "x1=");
+    if (p) x1 = atoi(p + 3);
+
+    p = strstr(buf, "y1=");
+    if (p) y1 = atoi(p + 3);
+
+    p = strstr(buf, "x2=");
+    if (p) x2 = atoi(p + 3);
+
+    p = strstr(buf, "y2=");
+    if (p) y2 = atoi(p + 3);
+
+    p = strstr(buf, "radius=");
+    if (p) radius = atoi(p + 7);
+
+    p = strstr(buf, "color=");
+    if (p) color = atoi(p + 6);
+
+    p = strstr(buf, "width=");
+    if (p) width = atoi(p + 6);
+
+    p = strstr(buf, "style=");
+    if (p) style = atoi(p + 6);
+
+    p = strstr(buf, "filled=");
+    if (p) filled = atoi(p + 7);
+
+    p = strstr(buf, "font=");
+    if (p) font_size = atoi(p + 5);
+
+    p = strstr(buf, "number=");
+    if (p) number = atoi(p + 7);
+
+    p = strstr(buf, "digit=");
+    if (p) digit = atoi(p + 6);
+
+    free(buf);
+
+    UWORD c = color ? WHITE : BLACK;
+
+    sFONT *font = &Font16;
+    if (font_size == 8)       font = &Font8;
+    else if (font_size == 12) font = &Font12;
+    else if (font_size == 20) font = &Font20;
+    else if (font_size == 24) font = &Font24;
+    save_undo();
+    if (strcmp(type, "line") == 0) {
+        Paint_DrawLine(x1, y1, x2, y2, c, width, style);
+    } else if (strcmp(type, "rect") == 0) {
+        Paint_DrawRectangle(x1, y1, x2, y2, c, width, filled);
+    } else if (strcmp(type, "circle") == 0) {
+        Paint_DrawCircle(x1, y1, radius, c, width, filled);
+    } else if (strcmp(type, "string") == 0) {
+        Paint_DrawString_EN(x1, y1, text, font, c, c ? BLACK : WHITE);
+    } else if (strcmp(type, "number") == 0) {
+        Paint_DrawNum(x1, y1, number, font, c, c ? BLACK : WHITE);
+    } else if (strcmp(type, "decimal") == 0) {
+        Paint_DrawNumDecimals(x1, y1, (double)number / 100.0, font, digit, c, c ? BLACK : WHITE);
+    }
+
+    httpd_resp_sendstr(req, "OK"); 
+    save_original_buffer();
+    return ESP_OK; 
+}
+
+
+
+
 esp_err_t clear_white_handler(httpd_req_t *req)
 {
+    save_undo();
     Paint_Clear(WHITE);
+    save_original_buffer();
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
 }
 
 esp_err_t clear_black_handler(httpd_req_t *req)
 {
+    save_undo();
     Paint_Clear(BLACK);
+    save_original_buffer();
+    httpd_resp_sendstr(req, "OK");
+    return ESP_OK;
+}
+
+esp_err_t undo_handler(httpd_req_t *req)
+{
+    undo_last();
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
 }
@@ -46,6 +190,12 @@ esp_err_t draw_bitmap_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t rotate_buffer_handler(httpd_req_t *req)
+{
+    rotate_buffer_90();
+    httpd_resp_sendstr(req, "OK");
+    return ESP_OK;
+}
 
 esp_err_t sleep_handler(httpd_req_t *req)
 {
@@ -90,6 +240,7 @@ esp_err_t load_bmp_handler(httpd_req_t *req)
 
     Paint_Clear(WHITE);
     Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_270);
+    save_original_buffer();
     free(img_buf);
 
     httpd_resp_sendstr(req, "OK");
@@ -194,6 +345,19 @@ httpd_uri_t upload = {
     .user_ctx = NULL
 };
 
+
+httpd_uri_t undo_uri = {
+    .uri = "/undo", .method = HTTP_POST,
+    .handler = undo_handler, .user_ctx = NULL
+};
+
+httpd_uri_t rotate_buf_uri = {
+    .uri = "/rotate_buffer", 
+    .method = HTTP_POST,
+    .handler = rotate_buffer_handler, 
+    .user_ctx = NULL
+};
+
 httpd_uri_t draw_bitmap_uri = {
     .uri = "/draw_bitmap",
     .method = HTTP_POST,
@@ -201,6 +365,12 @@ httpd_uri_t draw_bitmap_uri = {
     .user_ctx = NULL
 };
 
+httpd_uri_t draw_shape_uri = {
+    .uri = "/draw_shape", 
+    .method = HTTP_POST,
+    .handler = draw_shape_handler, 
+    .user_ctx = NULL
+};
 
 
 httpd_uri_t get_display_uri = {
@@ -228,11 +398,114 @@ httpd_uri_t load_bmp_uri = {
     .handler = load_bmp_handler, .user_ctx = NULL
 };
 
+httpd_uri_t cp1 = { 
+    .uri = "/hotspot-detect.html",
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler,
+    .user_ctx = NULL 
+};
+httpd_uri_t cp2 = {
+    .uri = "/generate_204",            
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp3 = {
+    .uri = "/gen_204",                 
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp4 = {
+    .uri = "/mobile/status.php",       
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp5 = {
+    .uri = "/ncsi.txt",                
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp6 = {
+    .uri = "/library/test/success.html", 
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp7 = {
+    .uri = "/success.txt",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp8 = {
+    .uri = "/portal.html",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp9 = {
+    .uri = "/connectivity-check.html",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp10 = {
+    .uri = "/fwlink/",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp11 = {
+    .uri = "/check_network_status.txt",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp12 = {
+    .uri = "/nm-check.txt",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp13 = {
+    .uri = "/canonical.html",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp14 = {
+    .uri = "/favicon.ico",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp15 = {
+    .uri = "/generate204",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp16 = {
+    .uri = "/connecttest.txt",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
+httpd_uri_t cp17 = {
+    .uri = "/redirect",             
+    .method = HTTP_GET, 
+    .handler = captive_redirect_handler, 
+    .user_ctx = NULL 
+};
 
 httpd_handle_t start_webserver(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192; 
+    config.max_uri_handlers = 40;
     httpd_handle_t server = NULL;
 
     if (httpd_start(&server, &config) == ESP_OK) {
@@ -244,6 +517,26 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &clear_black_uri);
         httpd_register_uri_handler(server, &sleep_uri);
         httpd_register_uri_handler(server, &load_bmp_uri);
+        httpd_register_uri_handler(server, &rotate_buf_uri);
+        httpd_register_uri_handler(server, &draw_shape_uri);
+        httpd_register_uri_handler(server, &undo_uri);
+        httpd_register_uri_handler(server, &cp1);
+        httpd_register_uri_handler(server, &cp2);
+        httpd_register_uri_handler(server, &cp3);
+        httpd_register_uri_handler(server, &cp4);
+        httpd_register_uri_handler(server, &cp5);
+        httpd_register_uri_handler(server, &cp6);
+        httpd_register_uri_handler(server, &cp7);
+        httpd_register_uri_handler(server, &cp8);
+        httpd_register_uri_handler(server, &cp9);
+        httpd_register_uri_handler(server, &cp10);
+        httpd_register_uri_handler(server, &cp11);
+        httpd_register_uri_handler(server, &cp12);
+        httpd_register_uri_handler(server, &cp13);
+        httpd_register_uri_handler(server, &cp14);
+        httpd_register_uri_handler(server, &cp15);
+        httpd_register_uri_handler(server, &cp16);
+        httpd_register_uri_handler(server, &cp17);
     }
     return server;
 }

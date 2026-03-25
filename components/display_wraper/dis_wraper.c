@@ -262,4 +262,128 @@ void draw_bitmap()
     ESP_LOGI("DRAW", "Bitmap drawn.");
 }
 
+static uint8_t *original_buffer = NULL;
+static int original_buf_size = 0;
+
+void save_original_buffer(void)
+{
+    int buf_size = Paint.WidthByte * Paint.HeightMemory;
+    if (original_buffer) {
+        free(original_buffer);
+    }
+    original_buffer = malloc(buf_size);
+    if (!original_buffer) {
+        ESP_LOGE("DRAW", "save original malloc failed");
+        return;
+    }
+    memcpy(original_buffer, image_buffer, buf_size);
+    original_buf_size = buf_size;
+    ESP_LOGI("DRAW", "Original buffer saved");
+}
+
+
+
+
+void rotate_buffer_90(void)
+{
+    if (!original_buffer) {
+        ESP_LOGE("DRAW", "No original buffer saved!");
+        return;
+    }
+
+    static int rotation_count = 0;
+    rotation_count = (rotation_count + 1) % 4;
+
+    int w = Paint.WidthMemory;   // 152
+    int h = Paint.HeightMemory;  // 296
+    int bpr = Paint.WidthByte;   // 19
+    int buf_size = bpr * h;
+
+    uint8_t *tmp = malloc(buf_size);
+    if (!tmp) {
+        ESP_LOGE("DRAW", "rotate malloc failed");
+        return;
+    }
+    memset(tmp, 0xFF, buf_size);
+
+    // Vypočítaj rozmery po rotácii
+    int rotated_w = (rotation_count == 1 || rotation_count == 3) ? h : w;
+    int rotated_h = (rotation_count == 1 || rotation_count == 3) ? w : h;
+
+    // Centrovanie — rovnako ako v Paint_DrawBitmap_universal
+    int x_offset = (w - rotated_w) / 2;
+    int y_offset = (h - rotated_h) / 2;
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int src_byte = x / 8 + y * bpr;
+            int src_bit  = 7 - (x % 8);
+            int pixel = (original_buffer[src_byte] >> src_bit) & 1;
+
+            if (pixel == 1) continue;
+
+            int nx = x;
+            int ny = y;
+
+            switch (rotation_count) {
+                case 1: // 90° CW
+                    nx = h - 1 - y;
+                    ny = x;
+                    break;
+                case 2: // 180°
+                    nx = w - 1 - x;
+                    ny = h - 1 - y;
+                    break;
+                case 3: // 270° CW
+                    nx = y;
+                    ny = w - 1 - x;
+                    break;
+                default:
+                    nx = x;
+                    ny = y;
+                    break;
+            }
+
+            // Pridaj offset pre centrovanie
+            nx += x_offset;
+            ny += y_offset;
+
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+            int dst_byte = nx / 8 + ny * bpr;
+            int dst_bit  = 7 - (nx % 8);
+            tmp[dst_byte] &= ~(1 << dst_bit);
+        }
+    }
+
+    memcpy(image_buffer, tmp, buf_size);
+    free(tmp);
+
+    ESP_LOGI("DRAW", "Buffer rotated %d x 90 from original", rotation_count);
+}
+
+
+static uint8_t *undo_buffer = NULL;
+
+void save_undo(void)
+{
+    int buf_size = Paint.WidthByte * Paint.HeightMemory;
+    if (!undo_buffer) {
+        undo_buffer = malloc(buf_size);
+    }
+    if (undo_buffer) {
+        memcpy(undo_buffer, image_buffer, buf_size);
+    }
+}
+
+void undo_last(void)
+{
+    if (!undo_buffer) {
+        ESP_LOGE("DRAW", "No undo buffer!");
+        return;
+    }
+    int buf_size = Paint.WidthByte * Paint.HeightMemory;
+    memcpy(image_buffer, undo_buffer, buf_size);
+    save_original_buffer();
+}
 

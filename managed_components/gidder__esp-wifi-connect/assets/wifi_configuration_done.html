@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WiFi Configuration</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            /* Prevent content from overflowing */
+            max-height: 100vh;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .checkmark {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 30px;
+        }
+
+        .message {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg class="checkmark" viewBox="0 0 52 52">
+            <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" stroke="#4CAF50" stroke-width="2"/>
+            <path class="checkmark__check" fill="none" stroke="#4CAF50" stroke-width="2" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+        
+        <div class="message">
+            <p><span data-lang="will_restart">Device will restart in</span> <span id="countdown">3</span> <span data-lang="seconds">seconds</span></p>
+        </div>
+    </div>
+    
+    <script type="text/javascript" src="languages.js"></script>
+    <script>
+
+        function changeLanguage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const langParam = urlParams.get('lang');
+            const lang = langParam || localStorage.getItem('preferred_language') || 'en-US';
+            
+            document.querySelectorAll('[data-lang]').forEach(element => {
+                const key = element.getAttribute('data-lang');
+                element.textContent = translations[lang][key];
+            });
+            document.querySelectorAll('[data-lang-value]').forEach(element => {
+                const key = element.getAttribute('data-lang-value');
+                element.value = translations[lang][key];
+            });
+        }
+        changeLanguage()
+
+        window.addEventListener('load', function() {
+            
+            let count = 3;
+            const countdownElement = document.getElementById('countdown');
+            // const countdownEnElement = document.getElementById('countdown-en');
+            
+            const timer = setInterval(function() {
+                count--;
+                countdownElement.textContent = count;
+                // countdownEnElement.textContent = count;
+                
+                if (count <= 0) {
+                    clearInterval(timer);
+                    fetch('/reboot', {
+                        method: 'POST'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log('Restarted');
+                            window.close();
+                        } else {
+                            console.error('Fail to restart');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

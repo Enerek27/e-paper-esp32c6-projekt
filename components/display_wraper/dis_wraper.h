@@ -22,3 +22,7 @@ int get_image_buffer_size(void);
 void draw_bitmap_async(void);
 void display_show(void);
 void bmp_to_c_array();
+void rotate_buffer_90(void);
+void save_original_buffer(void);
+void save_undo(void);
+void undo_last(void);

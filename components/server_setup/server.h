@@ -19,6 +19,7 @@
 
 
 
+
 #define WIFI_SSID      "E-vizitka"
 #define WIFI_PASS      "evizitka1"
 #define WIFI_CHANNEL 1
@@ -39,3 +40,4 @@ void wifi_init_ap(void);
 void display_show_task(void *pvParameters);
 esp_err_t sleep_handler(httpd_req_t *req);
 esp_err_t load_bmp_handler(httpd_req_t *req);
+esp_err_t draw_shape_handler(httpd_req_t *req);
