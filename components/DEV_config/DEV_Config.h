@@ -12,13 +12,13 @@
 #define EPD_SCLK_PIN   19
 #endif
 #ifndef EPD_CS_PIN
-#define EPD_CS_PIN     21
+#define EPD_CS_PIN     1
 #endif
 #ifndef EPD_DC_PIN
-#define EPD_DC_PIN     14
+#define EPD_DC_PIN     21
 #endif
 #ifndef EPD_RST_PIN
-#define EPD_RST_PIN    20
+#define EPD_RST_PIN    22
 #endif
 #ifndef EPD_BUSY_PIN
 #define EPD_BUSY_PIN   2

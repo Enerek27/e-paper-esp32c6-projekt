@@ -21,7 +21,6 @@ void draw_bitmap_async(void)
 
 
 
-// Funkcia ktorá vráti pointer na buffer a jeho veľkosť
 UBYTE* get_image_buffer(void)
 {
     return image_buffer;
@@ -68,7 +67,7 @@ void clean_buffer()
     image_buffer = NULL;
 }
 
-// Toto len zobrazí čo je aktuálne v image_buffer na displej
+
 void display_show(void)
 {
     display_update();
@@ -199,14 +198,14 @@ void bmp_to_c_array()
 void draw_bitmap()
 {
     bmp_to_c_array();
-    // Otvor binárny súbor zo SPIFFS
+    
     FILE *f = fopen("/spiffs/bitmap.c", "rb");
     if (!f) {
         ESP_LOGE("DRAW", "bitmap.c file not found!");
         return;
     }
 
-    // Čítaj hlavičku (6 bajtov)
+    
     uint8_t header[6];
     if (fread(header, 1, 6, f) != 6) {
         ESP_LOGE("DRAW", "Header read failed!");
@@ -214,7 +213,7 @@ void draw_bitmap()
         return;
     }
 
-    // Skontroluj marker
+    
     if (header[0] != 0x00 || header[1] != 0x01) {
         ESP_LOGE("DRAW", "Invalid bitmap.c format!");
         fclose(f);
@@ -228,7 +227,7 @@ void draw_bitmap()
     int out_row_bytes = (img_width + 7) / 8;
     int total_bytes   = out_row_bytes * img_height;
 
-    // Alokuj buffer pre celý obrázok (hlavička + dáta)
+    
     uint8_t *img_buf = malloc(6 + total_bytes);
     if (!img_buf) {
         ESP_LOGE("DRAW", "malloc failed!");
@@ -236,10 +235,10 @@ void draw_bitmap()
         return;
     }
 
-    // Skopíruj hlavičku do bufferu
+   
     memcpy(img_buf, header, 6);
 
-    // Čítaj dáta
+   
     size_t read_bytes = fread(img_buf + 6, 1, total_bytes, f);
     fclose(f);
 
@@ -249,13 +248,13 @@ void draw_bitmap()
         return;
     }
 
-    // Vyčisti obrazovku a nakresli bitmapu
+   
     Paint_Clear(WHITE);
     Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_270);
 
     free(img_buf);
 
-    // Aktualizuj displej a uspaj ho
+    
     display_update();
     
 
@@ -306,11 +305,11 @@ void rotate_buffer_90(void)
     }
     memset(tmp, 0xFF, buf_size);
 
-    // Vypočítaj rozmery po rotácii
+   
     int rotated_w = (rotation_count == 1 || rotation_count == 3) ? h : w;
     int rotated_h = (rotation_count == 1 || rotation_count == 3) ? w : h;
 
-    // Centrovanie — rovnako ako v Paint_DrawBitmap_universal
+   
     int x_offset = (w - rotated_w) / 2;
     int y_offset = (h - rotated_h) / 2;
 
@@ -326,15 +325,15 @@ void rotate_buffer_90(void)
             int ny = y;
 
             switch (rotation_count) {
-                case 1: // 90° CW
+                case 1: 
                     nx = h - 1 - y;
                     ny = x;
                     break;
-                case 2: // 180°
+                case 2: 
                     nx = w - 1 - x;
                     ny = h - 1 - y;
                     break;
-                case 3: // 270° CW
+                case 3: 
                     nx = y;
                     ny = w - 1 - x;
                     break;
@@ -344,7 +343,7 @@ void rotate_buffer_90(void)
                     break;
             }
 
-            // Pridaj offset pre centrovanie
+          
             nx += x_offset;
             ny += y_offset;
 

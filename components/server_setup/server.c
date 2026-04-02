@@ -1,5 +1,8 @@
 
 #include "server.h"
+#include "wake_up.h"
+#include "website.h"
+#include <stdbool.h>
 
 
 static esp_err_t captive_redirect_handler(httpd_req_t *req) {
@@ -36,7 +39,7 @@ esp_err_t draw_shape_handler(httpd_req_t *req)
     int x2 = 0;
     int y2 = 0;
     int radius = 0;
-    int color = 0;
+    bool color = 0;
     int width = 1;
     int style = 0;
     int filled = 0;
@@ -83,7 +86,7 @@ esp_err_t draw_shape_handler(httpd_req_t *req)
     if (p) radius = atoi(p + 7);
 
     p = strstr(buf, "color=");
-    if (p) color = atoi(p + 6);
+    if (p) color = (bool)atoi(p + 6);
 
     p = strstr(buf, "width=");
     if (p) width = atoi(p + 6);
@@ -108,10 +111,15 @@ esp_err_t draw_shape_handler(httpd_req_t *req)
     UWORD c = color ? WHITE : BLACK;
 
     sFONT *font = &Font16;
-    if (font_size == 8)       font = &Font8;
-    else if (font_size == 12) font = &Font12;
-    else if (font_size == 20) font = &Font20;
-    else if (font_size == 24) font = &Font24;
+    if (font_size == 8){       
+        font = &Font8;
+    } else if (font_size == 12){
+        font = &Font12;
+    } else if (font_size == 20) {
+        font = &Font20;
+    } else if (font_size == 24) {
+        font = &Font24;
+    }
     save_undo();
     if (strcmp(type, "line") == 0) {
         Paint_DrawLine(x1, y1, x2, y2, c, width, style);
@@ -184,7 +192,7 @@ esp_err_t root_get_handler(httpd_req_t *req)
 
 esp_err_t draw_bitmap_post_handler(httpd_req_t *req)
 {
-    // Zobrazí čo je aktuálne v image_buffer — bez načítania BMP
+
     xTaskCreate(display_show_task, "show_task", 4096, NULL, 5, NULL);
     httpd_resp_sendstr(req, "Zobrazujem buffer...");
     return ESP_OK;
@@ -201,12 +209,13 @@ esp_err_t sleep_handler(httpd_req_t *req)
 {
     display_sleep();
     httpd_resp_sendstr(req, "OK");
+    go_to_sleep();
     return ESP_OK;
 }
 
 esp_err_t load_bmp_handler(httpd_req_t *req)
 {
-    bmp_to_c_array();  // BMP → bitmap.c
+    bmp_to_c_array();  
 
     FILE *f = fopen("/spiffs/bitmap.c", "rb");
     if (!f) {
@@ -238,7 +247,6 @@ esp_err_t load_bmp_handler(httpd_req_t *req)
     fread(img_buf + 6, 1, total_bytes, f);
     fclose(f);
 
-    Paint_Clear(WHITE);
     Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_270);
     save_original_buffer();
     free(img_buf);
@@ -256,12 +264,9 @@ esp_err_t upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    // Načítaj celý obsah do bufferu po častiach a hľadaj začiatok BMP (0x42 0x4D = "BM")
+    
     FILE *f = NULL;
     int remaining = req->content_len;
-    bool bmp_found = false;
-
-    // Temp buffer pre hľadanie BMP hlavičky
     uint8_t *search_buf = malloc(remaining < 8192 ? remaining : 8192);
     if (!search_buf) {
         free(buf);
@@ -280,7 +285,7 @@ esp_err_t upload_handler(httpd_req_t *req)
     total_received = received;
     remaining -= received;
 
-    // Hľadaj "BM" marker v prijatých dátach
+    
     int bmp_offset = -1;
     for (int i = 0; i < total_received - 1; i++) {
         if (search_buf[i] == 0x42 && search_buf[i+1] == 0x4D) {
@@ -307,11 +312,11 @@ esp_err_t upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    // Zapíš zvyšok z prvého čítania (od BMP offsetu)
+    
     fwrite(search_buf + bmp_offset, 1, total_received - bmp_offset, f);
     free(search_buf);
 
-    // Pokračuj so zvyškom dát
+   
     while (remaining > 0) {
         int chunk = remaining < 4000 ? remaining : 4000;
         received = httpd_req_recv(req, buf, chunk);
@@ -589,9 +594,7 @@ void wifi_init_ap(void)
         },
     };
 
-    if (strlen(WIFI_PASS) == 0) {
-        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    }
+    
 
     esp_wifi_set_mode(WIFI_MODE_AP);
     esp_wifi_set_config(WIFI_IF_AP, &wifi_config);

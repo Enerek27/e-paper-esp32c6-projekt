@@ -1,7 +1,10 @@
 
 
 #include "spiff_my.h"
+#include "esp_err.h"
 #include "esp_log.h"
+#include "esp_spiffs.h"
+#include <string.h>
 
 void init_spiffs()
 {
@@ -19,19 +22,15 @@ void init_spiffs()
         return;
     }
     
-    // Skontroluj dostupné miesto
+    
     size_t total = 0, used = 0;
     esp_spiffs_info(NULL, &total, &used);
     ESP_LOGI("SPIFFS", "Mounted OK. Total: %d, Used: %d", total, used);
     
-    // Test zápisu
-    FILE *f = fopen("/spiffs/test.txt", "w");
-    if (!f)
-        ESP_LOGE("SPIFFS", "Test write FAILED!");
-    else
-    {
-        fprintf(f, "test");
-        fclose(f);
-        ESP_LOGI("SPIFFS", "Test write OK");
+    esp_err_t check = esp_spiffs_check(NULL);
+    if (check == ESP_FAIL) {
+        ESP_LOGE("SPIFFS","Spiffs check went wrong");
+    } else if (check == ESP_ERR_INVALID_STATE) {
+        ESP_LOGE("SPIFFS", "Spiffs state is invalid");
     }
 }

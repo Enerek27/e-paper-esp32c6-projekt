@@ -29,6 +29,7 @@
 ******************************************************************************/
 #include "EPD_2in66.h"
 #include "Debug.h"
+#include "esp_log.h"
 
 const unsigned char WF_PARTIAL[159] ={
 0x00,0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -49,7 +50,7 @@ const unsigned char WF_PARTIAL[159] ={
 0x00,0x00,0x00,0x22,0x17,0x41,0xB0,0x32,0x36,
 };
 
-
+static const char *TAG = "EPD_2in66";
 /******************************************************************************
 function :	Software reset
 parameter:
@@ -136,9 +137,13 @@ parameter:
 void EPD_2IN66_Init(void)
 {
     EPD_2IN66_Reset();
+    ESP_LOGI(TAG, "RESET ok");
     EPD_2IN66_ReadBusy();
+    ESP_LOGI(TAG, "readBusy ok");
     EPD_2IN66_SendCommand(0x12);//soft  reset
+    ESP_LOGI(TAG, "sendCommand ok");
     EPD_2IN66_ReadBusy();
+    ESP_LOGI(TAG, "readBusy ok");
 	
 	/* Y increment, X increment */
     EPD_2IN66_SendCommand(0x11);
@@ -156,6 +161,7 @@ void EPD_2IN66_Init(void)
 
     EPD_2IN66_SendCommand(0x3C);        // Border  设置  黑白一般设置为跟随白波形即 0x01        Border setting 
     EPD_2IN66_SendData(0x01);
+    ESP_LOGI(TAG, "All ok");
 	
 }
 
@@ -192,7 +198,7 @@ void EPD_2IN66_Init_partial(void)
     EPD_2IN66_SendData((EPD_2IN66_WIDTH % 8 == 0)? (EPD_2IN66_WIDTH / 8 ): (EPD_2IN66_WIDTH / 8 + 1) );
     /*	Set RamY-address Start/End position	*/
     EPD_2IN66_SendCommand(0x45);
-    EPD_2IN66_SendData(0);
+    EPD_2IN66_SendData(0);ESP_LOGI(TAG, "DEV_Module_Init ok");
     EPD_2IN66_SendData(0);
     EPD_2IN66_SendData((EPD_2IN66_HEIGHT&0xff));
     EPD_2IN66_SendData((EPD_2IN66_HEIGHT&0x100)>>8);
@@ -243,28 +249,34 @@ void EPD_2IN66_Clear(void)
     UWORD Width, Height;
     Width = (EPD_2IN66_WIDTH % 8 == 0)? (EPD_2IN66_WIDTH / 8 ): (EPD_2IN66_WIDTH / 8 + 1);
     Height = EPD_2IN66_HEIGHT;
-
+    ESP_LOGI(TAG, "clear start");
     EPD_2IN66_SendCommand(0x4E);     
     EPD_2IN66_SendData(0x01);
-
+    ESP_LOGI(TAG, "send data ok");
     EPD_2IN66_SendCommand(0x4F);       
     EPD_2IN66_SendData(0x27);
     EPD_2IN66_SendData(0x01);
-    
+    ESP_LOGI(TAG, "send data ok");
     EPD_2IN66_ReadBusy();
+    ESP_LOGI(TAG, "busy ok");
     EPD_2IN66_SendCommand(0x24);
+    ESP_LOGI(TAG, "send command ok");
     for (UWORD j = 0; j < Height; j++) {
         for (UWORD i = 0; i < Width; i++) {
             EPD_2IN66_SendData(0xff);
         }
     }
 	EPD_2IN66_SendCommand(0x26);
+    ESP_LOGI(TAG, "send command last ok");
     for (UWORD j = 0; j < Height; j++) {
         for (UWORD i = 0; i < Width; i++) {
             EPD_2IN66_SendData(0xff);
         }
     }
+    ESP_LOGI(TAG, "turning display on ");
     EPD_2IN66_TurnOnDisplay();
+    
+    ESP_LOGI(TAG, "all clear  ok");
 }
 
 /******************************************************************************
