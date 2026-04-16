@@ -1,0 +1,86 @@
+@startuml
+
+skinparam backgroundColor #FAFAFA
+skinparam shadowing true
+
+
+
+skinparam state {
+    BackgroundColor #EFF6FF
+    BorderColor #2563EB
+    BorderThickness 2
+    FontSize 13
+    FontColor #1E3A5F
+    FontStyle bold
+    ArrowColor #1D4ED8
+    ArrowFontSize 10
+    ArrowFontColor #4B5563
+    ArrowFontStyle italic
+    StartColor #1E3A5F
+    EndColor #1E3A5F
+}
+
+skinparam note {
+    BackgroundColor #FFFBEB
+    BorderColor #D97706
+    FontSize 10
+    FontColor #374151
+}
+
+title <size:30><b>Stavový diagram</b></size>
+
+[*] --> Inicializacia : Zapnutie / Reset
+
+state "  Inicializácia  " as Inicializacia
+state "  Spustenie Wi-Fi AP  " as WifiAP
+state "  Webovy server aktívny  " as Server #D1FAE5
+state "  Spracovanie HTTP požiadavky  " as HTTP #FEF9C3
+state "  Zobrazenie na displeji  " as Display #DBEAFE
+state "  Režim hlbokého spánku  " as Sleep #FEE2E2
+
+note right of Inicializacia
+  nvs_flash_init()
+  init_spiffs()
+  DEV hardware init
+end note
+
+note right of WifiAP
+  wifi_init_ap()
+  dns_server_start()
+  IP: 192.168.4.1
+end note
+
+note right of Server
+  start_webserver()
+  Caka na HTTP poziadavky
+  (hlavny stav systemu)
+end note
+
+note right of HTTP
+  /draw_shape
+  /upload BMP
+  /clear  /undo  /rotate
+end note
+
+note right of Display
+  display_init()
+  Paint_Draw*()
+  display_update()
+end note
+
+note right of Sleep
+  esp_wifi_stop()
+  display_sleep()
+  esp_deep_sleep_start()
+end note
+
+Inicializacia --> WifiAP  : Inicializácia OK
+WifiAP        --> Server  : AP spustený
+Server        --> HTTP    : POST /draw_shape\n/upload /clear /undo /rotate
+Server        --> Display : POST /draw_bitmap
+Server        --> Sleep   : POST /sleep
+HTTP          -[dashed]-> Server  : Odpoveď OK
+Display       -[dashed]-> Server  : Zobrazenie dokončené
+Sleep         -[dashed]-> Inicializacia : Stlačenie tlačidla
+
+@enduml

@@ -6,16 +6,13 @@
 #include "freertos/idf_additions.h"
 #include "freertos/projdefs.h"
 
-#define BUTTON_PIN_BITMASK (1ULL << BUTTON_GPIO)
+#define WAKEUP_PIN 0
 
 
 static const char *TAG = "WAKEUP";    
 
 
-/*
-Method to print the reason by which ESP32
-has been awaken from sleep
-*/
+
 void print_wakeup_reason(void){
   
 
@@ -35,10 +32,9 @@ void print_wakeup_reason(void){
 
 
 /* ---------- Funkcia na nastavenie tlačidla ---------- */
-
 void init_wake_button(void) {
-    ESP_ERROR_CHECK(esp_sleep_disable_ext1_wakeup_io(0));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(0, ESP_EXT1_WAKEUP_ANY_LOW));
+    ESP_ERROR_CHECK(esp_sleep_disable_ext1_wakeup_io(WAKEUP_PIN));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(WAKEUP_PIN, ESP_EXT1_WAKEUP_ANY_LOW));
 }
 
 void go_to_sleep(void) {

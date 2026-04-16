@@ -1,8 +1,11 @@
-
 #include "server.h"
+#include "EPD_2in66.h"
+#include "GUI_Paint.h"
 #include "wake_up.h"
 #include "website.h"
 #include <stdbool.h>
+#include <string.h>
+
 
 
 static esp_err_t captive_redirect_handler(httpd_req_t *req) {
@@ -12,8 +15,6 @@ static esp_err_t captive_redirect_handler(httpd_req_t *req) {
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-
-
 
 
 esp_err_t draw_shape_handler(httpd_req_t *req)
@@ -141,8 +142,6 @@ esp_err_t draw_shape_handler(httpd_req_t *req)
 }
 
 
-
-
 esp_err_t clear_white_handler(httpd_req_t *req)
 {
     save_undo();
@@ -183,7 +182,6 @@ esp_err_t get_display_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-
 esp_err_t root_get_handler(httpd_req_t *req)
 {
     httpd_resp_send(req, webpage, HTTPD_RESP_USE_STRLEN);
@@ -192,7 +190,6 @@ esp_err_t root_get_handler(httpd_req_t *req)
 
 esp_err_t draw_bitmap_post_handler(httpd_req_t *req)
 {
-
     xTaskCreate(display_show_task, "show_task", 4096, NULL, 5, NULL);
     httpd_resp_sendstr(req, "Zobrazujem buffer...");
     return ESP_OK;
@@ -215,7 +212,7 @@ esp_err_t sleep_handler(httpd_req_t *req)
 
 esp_err_t load_bmp_handler(httpd_req_t *req)
 {
-    bmp_to_c_array();  
+   bmp_to_c_array();
 
     FILE *f = fopen("/spiffs/bitmap.c", "rb");
     if (!f) {
@@ -246,15 +243,14 @@ esp_err_t load_bmp_handler(httpd_req_t *req)
     memcpy(img_buf, header, 6);
     fread(img_buf + 6, 1, total_bytes, f);
     fclose(f);
-
-    Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_270);
-    save_original_buffer();
+    save_undo();                                   
+    Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_0);
     free(img_buf);
+    save_original_buffer();                        
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
 }
-
 
 esp_err_t upload_handler(httpd_req_t *req)
 {
@@ -264,7 +260,6 @@ esp_err_t upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    
     FILE *f = NULL;
     int remaining = req->content_len;
     uint8_t *search_buf = malloc(remaining < 8192 ? remaining : 8192);
@@ -285,7 +280,6 @@ esp_err_t upload_handler(httpd_req_t *req)
     total_received = received;
     remaining -= received;
 
-    
     int bmp_offset = -1;
     for (int i = 0; i < total_received - 1; i++) {
         if (search_buf[i] == 0x42 && search_buf[i+1] == 0x4D) {
@@ -312,11 +306,9 @@ esp_err_t upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    
     fwrite(search_buf + bmp_offset, 1, total_received - bmp_offset, f);
     free(search_buf);
 
-   
     while (remaining > 0) {
         int chunk = remaining < 4000 ? remaining : 4000;
         received = httpd_req_recv(req, buf, chunk);
@@ -336,6 +328,7 @@ esp_err_t upload_handler(httpd_req_t *req)
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
 }
+
 httpd_uri_t root = {
     .uri = "/",
     .method = HTTP_GET,
@@ -349,7 +342,6 @@ httpd_uri_t upload = {
     .handler = upload_handler,
     .user_ctx = NULL
 };
-
 
 httpd_uri_t undo_uri = {
     .uri = "/undo", .method = HTTP_POST,
@@ -377,7 +369,6 @@ httpd_uri_t draw_shape_uri = {
     .user_ctx = NULL
 };
 
-
 httpd_uri_t get_display_uri = {
     .uri = "/get_display",
     .method = HTTP_GET,
@@ -389,6 +380,7 @@ httpd_uri_t clear_white_uri = {
     .uri = "/clear_white", .method = HTTP_POST,
     .handler = clear_white_handler, .user_ctx = NULL
 };
+
 httpd_uri_t clear_black_uri = {
     .uri = "/clear_black", .method = HTTP_POST,
     .handler = clear_black_handler, .user_ctx = NULL
@@ -398,6 +390,7 @@ httpd_uri_t sleep_uri = {
     .uri = "/sleep", .method = HTTP_POST,
     .handler = sleep_handler, .user_ctx = NULL
 };
+
 httpd_uri_t load_bmp_uri = {
     .uri = "/load_bmp", .method = HTTP_POST,
     .handler = load_bmp_handler, .user_ctx = NULL
@@ -548,24 +541,19 @@ httpd_handle_t start_webserver(void)
 
 /* -------------------wifi -------------------------*/
 
-
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data)
 {
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-
         ESP_LOGI("wifi", "device connected: "MACSTR, MAC2STR(event->mac));
     }
 
     if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
-
         ESP_LOGI("wifi", "device disconnected: "MACSTR, MAC2STR(event->mac));
     }
 }
-
-
 
 void wifi_init_ap(void)
 {
@@ -593,8 +581,6 @@ void wifi_init_ap(void)
             .authmode = WIFI_AUTH_WPA2_PSK
         },
     };
-
-    
 
     esp_wifi_set_mode(WIFI_MODE_AP);
     esp_wifi_set_config(WIFI_IF_AP, &wifi_config);

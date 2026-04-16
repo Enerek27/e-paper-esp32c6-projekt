@@ -1,5 +1,6 @@
 #include "website.h"
 
+
 const char webpage[] =
 "<!DOCTYPE html>"
 "<html lang='sk'>"
@@ -280,7 +281,7 @@ const char webpage[] =
 "}"
 "async function uploadBmp(){"
 "  const file=document.getElementById('fileInput').files[0];"
-"  if(!file){alert('Najprv vyber BMP súbor');return;}"
+"  if(!file){alert('Najprv vyber .bmp súbor');return;}"
 "  setStatus('Odosielam súbor...');"
 "  const fd=new FormData();"
 "  fd.append('file',file);"
@@ -288,7 +289,6 @@ const char webpage[] =
 "  if(r.ok){"
 "    setStatus('✓ Súbor bol úspešne odoslaný');"
 "    document.getElementById('fileInput').value='';"
-"    refreshDisplay();"
 "  }"
 "  else setStatus('✗ Nepodarilo sa odoslať súbor');"
 "}"

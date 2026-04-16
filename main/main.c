@@ -12,11 +12,6 @@
 #include "server.h"
 #include "dis_wraper.h"
 
-
-
-
-#include "freertos/event_groups.h"
-
 #include "nvs_flash.h"
 
 
@@ -40,9 +35,6 @@ void app_main(void)
     Paint_DrawString_EN(110, 68, WIFI_SSID, &Font20, BLACK, WHITE);
      Paint_DrawString_EN(5, 90, "Password:", &Font16, BLACK, WHITE);
     Paint_DrawString_EN(110, 88, WIFI_PASS, &Font20, BLACK, WHITE);
-    //Paint_DrawLine(25, 60, 175, 60, BLACK, 2, LINE_STYLE_DOTTED);
-    //Paint_DrawNumDecimals(25, 100, 77, &Font16, 0, BLACK, WHITE);
-    //Paint_DrawBitmap_universal(gImage_pusty_white,WHITE, ROTATE_270); kreslenie obrazku s otočením 
     
     display_update();
     save_original_buffer();
@@ -52,7 +44,7 @@ void app_main(void)
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    //display_sleep();
+    
     
 
 }

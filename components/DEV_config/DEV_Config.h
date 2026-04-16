@@ -24,12 +24,12 @@
 #define EPD_BUSY_PIN   2
 #endif
 
-/* Typy použité v WaveShare driveroch */
+
 typedef uint8_t  UBYTE;
 typedef uint16_t UWORD;
 typedef uint32_t UDOUBLE;
 
-/* Prototypy, ktoré očakáva driver EPD_2in66 */
+
 int DEV_Module_Init(void);
 void DEV_Module_Exit(void);
 

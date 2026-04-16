@@ -1,24 +1,9 @@
-
-
 #include "dis_wraper.h"
 #include "DEV_Config.h"
-#include <time.h>
+
 
 UBYTE * image_buffer = NULL;
 extern PAINT Paint;
-
-
-void draw_bitmap_task(void *pvParameters)
-{
-    draw_bitmap();
-    vTaskDelete(NULL);
-}
-
-void draw_bitmap_async(void)
-{
-    xTaskCreate(draw_bitmap_task, "draw_bmp", 8192, NULL, 5, NULL);
-}
-
 
 
 UBYTE* get_image_buffer(void)
@@ -56,18 +41,6 @@ void display_sleep()
     EPD_2IN66_Sleep();
 }
 
-void draw_text(const char *text, int x, int y, sFONT *font)
-{
-    Paint_DrawString_EN(x, y, (char *)text, font, BLACK, WHITE);
-}
-
-void clean_buffer() 
-{
-    free(image_buffer);
-    image_buffer = NULL;
-}
-
-
 void display_show(void)
 {
     display_update();
@@ -82,66 +55,65 @@ void display_show_task(void *pvParameters)
 
 void bmp_to_c_array()
 {
-    FILE *bmp = fopen("/spiffs/bitmap.bmp", "rb");
-    if (!bmp) {
+    FILE *f = fopen("/spiffs/bitmap.bmp", "rb");
+    if (!f) {
         printf("BMP not found\n");
         return;
     }
 
-    // Čítaj BMP hlavičku (54 bajtov)
+    
     uint8_t bmp_header[54];
-    if (fread(bmp_header, 1, 54, bmp) != 54) {
+    if (fread(bmp_header, 1, 54, f) != 54) {
         printf("BMP header read failed\n");
-        fclose(bmp);
+        fclose(f);
         return;
     }
 
-    // Z BMP hlavičky vytiahni rozmery (offset 18 = width, 22 = height, little-endian)
+    
     int32_t bmp_width  = bmp_header[18] | (bmp_header[19] << 8) |
                          (bmp_header[20] << 16) | (bmp_header[21] << 24);
     int32_t bmp_height = bmp_header[22] | (bmp_header[23] << 8) |
                          (bmp_header[24] << 16) | (bmp_header[25] << 24);
-    // BMP môže mať záporný height (top-down), berieme absolútnu hodnotu
+    
     if (bmp_height < 0) bmp_height = -bmp_height;
 
     printf("BMP size: %ldx%ld\n", bmp_width, bmp_height);
 
-    // Čítaj pixel dáta (od offsetu 54)
-    // BMP riadky sú zarovnané na 4 bajty
-    int bmp_row_bytes = ((bmp_width + 31) / 32) * 4;  // pre 1bpp
-    // Ak je to 24bpp BMP, uprav podľa farebnej hĺbky
+    
+    int bmp_row_bytes = ((bmp_width + 31) / 32) * 4;  
+   
     uint8_t bpp = bmp_header[28]; // bits per pixel
     if (bpp == 24) bmp_row_bytes = ((bmp_width * 3 + 3) / 4) * 4;
     else if (bpp == 8) bmp_row_bytes = ((bmp_width + 3) / 4) * 4;
     else if (bpp == 1) bmp_row_bytes = ((bmp_width + 31) / 32) * 4;
 
-    // Načítaj všetky pixel dáta
+    
     long pixel_offset = bmp_header[10] | (bmp_header[11] << 8);
-    fseek(bmp, pixel_offset, SEEK_SET);
+    fseek(f, pixel_offset, SEEK_SET);
 
-    // Výsledná bitmap: 1 bit na pixel, bez zarovnania (len (width+7)/8 bajtov na riadok)
+   
     int out_row_bytes = (bmp_width + 7) / 8;
     int total_bytes   = out_row_bytes * bmp_height;
 
     uint8_t *out_buf = malloc(total_bytes);
     if (!out_buf) {
         printf("malloc failed\n");
-        fclose(bmp);
+        fclose(f);
         return;
     }
-    memset(out_buf, 0xFF, total_bytes); // default biela
+    memset(out_buf, 0xFF, total_bytes); 
 
     uint8_t *row_buf = malloc(bmp_row_bytes);
     if (!row_buf) {
         free(out_buf);
-        fclose(bmp);
+        fclose(f);
         return;
     }
 
-    // BMP je uložený zdola nahor (bottom-up), preto čítame riadky v opačnom poradí
+    
     for (int y = bmp_height - 1; y >= 0; y--) {
-        fread(row_buf, 1, bmp_row_bytes, bmp);
-        int out_y = (bmp_height - 1 - y); // prehodíme poradie
+        fread(row_buf, 1, bmp_row_bytes, f);
+        int out_y = (bmp_height - 1 - y); 
 
         for (int x = 0; x < bmp_width; x++) {
             uint8_t pixel_black = 0;
@@ -150,7 +122,6 @@ void bmp_to_c_array()
                 uint8_t b = row_buf[x * 3 + 0];
                 uint8_t g = row_buf[x * 3 + 1];
                 uint8_t r = row_buf[x * 3 + 2];
-                // Ak je pixel tmavý (čierny) → bit = 0, inak biely → bit = 1
                 uint8_t gray = (r * 77 + g * 150 + b * 29) >> 8;
                 pixel_black = (gray < 128) ? 1 : 0;
             } else if (bpp == 1) {
@@ -161,7 +132,7 @@ void bmp_to_c_array()
             }
 
             if (pixel_black) {
-                // Nastav bit na 0 (čierna = 0 v tvojom formáte)
+                
                 int byte_idx = out_y * out_row_bytes + (x / 8);
                 out_buf[byte_idx] &= ~(0x80 >> (x % 8));
             }
@@ -169,9 +140,9 @@ void bmp_to_c_array()
     }
 
     free(row_buf);
-    fclose(bmp);
+    fclose(f);
 
-    // Zapis do /spiffs/bitmap.c v požadovanom formáte
+    
     FILE *out = fopen("/spiffs/bitmap.c", "wb");
     if (!out) {
         printf("Cannot create C file\n");
@@ -179,7 +150,7 @@ void bmp_to_c_array()
         return;
     }
 
-    // Hlavička: marker + width (little-endian) + height (little-endian)
+    
     uint8_t header[6] = {
         0x00, 0x01,
         (uint8_t)(bmp_width  & 0xFF), (uint8_t)((bmp_width  >> 8) & 0xFF),
@@ -195,75 +166,10 @@ void bmp_to_c_array()
 }
 
 
-void draw_bitmap()
-{
-    bmp_to_c_array();
-    
-    FILE *f = fopen("/spiffs/bitmap.c", "rb");
-    if (!f) {
-        ESP_LOGE("DRAW", "bitmap.c file not found!");
-        return;
-    }
 
-    
-    uint8_t header[6];
-    if (fread(header, 1, 6, f) != 6) {
-        ESP_LOGE("DRAW", "Header read failed!");
-        fclose(f);
-        return;
-    }
-
-    
-    if (header[0] != 0x00 || header[1] != 0x01) {
-        ESP_LOGE("DRAW", "Invalid bitmap.c format!");
-        fclose(f);
-        return;
-    }
-
-    UWORD img_width  = header[2] | (header[3] << 8);
-    UWORD img_height = header[4] | (header[5] << 8);
-    ESP_LOGI("DRAW", "Bitmap size: %dx%d", img_width, img_height);
-
-    int out_row_bytes = (img_width + 7) / 8;
-    int total_bytes   = out_row_bytes * img_height;
-
-    
-    uint8_t *img_buf = malloc(6 + total_bytes);
-    if (!img_buf) {
-        ESP_LOGE("DRAW", "malloc failed!");
-        fclose(f);
-        return;
-    }
-
-   
-    memcpy(img_buf, header, 6);
-
-   
-    size_t read_bytes = fread(img_buf + 6, 1, total_bytes, f);
-    fclose(f);
-
-    if (read_bytes != total_bytes) {
-        ESP_LOGE("DRAW", "Data read failed! Got %d, expected %d", read_bytes, total_bytes);
-        free(img_buf);
-        return;
-    }
-
-   
-    Paint_Clear(WHITE);
-    Paint_DrawBitmap_universal(img_buf, WHITE, ROTATE_270);
-
-    free(img_buf);
-
-    
-    display_update();
-    
-
-    ESP_LOGI("DRAW", "Bitmap drawn.");
-}
 
 static uint8_t *original_buffer = NULL;
 static int original_buf_size = 0;
-
 void save_original_buffer(void)
 {
     int buf_size = Paint.WidthByte * Paint.HeightMemory;
@@ -285,6 +191,7 @@ void save_original_buffer(void)
 
 void rotate_buffer_90(void)
 {
+    save_undo();
     if (!original_buffer) {
         ESP_LOGE("DRAW", "No original buffer saved!");
         return;
@@ -293,9 +200,9 @@ void rotate_buffer_90(void)
     static int rotation_count = 0;
     rotation_count = (rotation_count + 1) % 4;
 
-    int w = Paint.WidthMemory;   // 152
-    int h = Paint.HeightMemory;  // 296
-    int bpr = Paint.WidthByte;   // 19
+    int w = Paint.WidthMemory;   
+    int h = Paint.HeightMemory;  
+    int bpr = Paint.WidthByte;   
     int buf_size = bpr * h;
 
     uint8_t *tmp = malloc(buf_size);
@@ -385,4 +292,3 @@ void undo_last(void)
     memcpy(image_buffer, undo_buffer, buf_size);
     save_original_buffer();
 }
-
