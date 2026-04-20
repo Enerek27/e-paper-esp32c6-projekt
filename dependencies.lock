@@ -64,39 +64,28 @@ dependencies:
       type: service
     version: 1.10.1
   espressif/wifi_remote_over_eppp:
-    component_hash: ac4d13625cc9f88597cd612d2758580fac287d8ec731b606f2a0720d28cda6cd
+    component_hash: 06d8bc15348bbd21f1390daace36ed5adcf6026c93c5b69decc55fa04df2711a
     dependencies:
+    - name: idf
+      require: private
+      version: '>=5.3'
     - name: espressif/eppp_link
       registry_url: https://components.espressif.com
       require: private
       version: '>=0.1'
-    - name: idf
-      require: private
-      version: '>=5.3'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 0.3.1
-  gidder/esp-wifi-connect:
-    component_hash: edd137ce91839602b12611265d0d1b6cd843b7b4489463bddb2f1591d1ca992a
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=5.3'
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 2.5.0
+    version: 0.3.2
   idf:
     source:
       type: idf
-    version: 5.5.3
+    version: 6.0.0
 direct_dependencies:
 - espressif/esp_wifi_remote
 - espressif/led_strip
 - espressif/mdns
-- gidder/esp-wifi-connect
 - idf
-manifest_hash: dc14c3668fbb8d0db12d54ebf003c7bf528c94b6482a1f03cc7b5ba45e2088e1
+manifest_hash: 6af9af5280f69ac07aa514dd4ec0b5a4c337fdbf2ba7f8dcee65a7b2bcaf171e
 target: esp32c6
-version: 2.0.0
+version: 3.0.0

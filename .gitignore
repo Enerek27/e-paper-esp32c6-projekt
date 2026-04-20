@@ -4,3 +4,6 @@ sdkconfig.old
 .vscode
 .clangd
 .devcontainer
+*.png
+*.puml
+managed_components/

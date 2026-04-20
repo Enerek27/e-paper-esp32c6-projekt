@@ -1,21 +1,21 @@
 #include "DEV_Config.h"
 #include "driver/spi_master.h"
-#include "driver/gpio.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 static const char *TAG = "DEV_Config";
 
-/* SPI handle */
+
 static spi_device_handle_t spi_handle = NULL;
 
-/* helper to init SPI bus + device */
+
 int DEV_Module_Init(void)
 {
     esp_err_t ret;
 
-    // Configure GPIOs
+   
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL<<EPD_DC_PIN) | (1ULL<<EPD_RST_PIN) | (1ULL<<EPD_BUSY_PIN) | (1ULL<<EPD_CS_PIN),
         .mode = GPIO_MODE_OUTPUT,
@@ -23,7 +23,7 @@ int DEV_Module_Init(void)
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    // BUSY is input
+   
     io_conf.pin_bit_mask = (1ULL<<EPD_DC_PIN) | (1ULL<<EPD_RST_PIN) | (1ULL<<EPD_CS_PIN);
     io_conf.mode = GPIO_MODE_OUTPUT;
     gpio_config(&io_conf);
@@ -38,7 +38,7 @@ int DEV_Module_Init(void)
     };
     gpio_config(&in_conf);
 
-    // SPI bus configuration
+    
     spi_bus_config_t buscfg = {
         .mosi_io_num = EPD_MOSI_PIN,
         .miso_io_num = -1,
@@ -68,7 +68,7 @@ int DEV_Module_Init(void)
         return -1;
     }
 
-    // default pin states
+    
     gpio_set_level(EPD_RST_PIN, 1);
     gpio_set_level(EPD_DC_PIN, 0);
     gpio_set_level(EPD_CS_PIN, 1);

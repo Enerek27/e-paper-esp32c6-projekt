@@ -4,6 +4,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include <stddef.h>
 #include <string.h>
 
 void init_spiffs()
@@ -23,7 +24,8 @@ void init_spiffs()
     }
     
     
-    size_t total = 0, used = 0;
+    size_t total = 0;
+    size_t used = 0;
     esp_spiffs_info(NULL, &total, &used);
     ESP_LOGI("SPIFFS", "Mounted OK. Total: %d, Used: %d", total, used);
     

@@ -17,4 +17,4 @@ dependencies:
   espressif/led_strip: '*'
   espressif/esp_wifi_remote: '*'
   espressif/mdns: '*'
-  gidder/esp-wifi-connect: '*'
+  
